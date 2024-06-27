@@ -143,8 +143,6 @@ mesh=pv.read('mesh_v1.stl')
 plotter.add_mesh(mesh) 
                     #scalars='my_scalar', cmap='bwr'
                 
-
-
 #plotter.add_scalar_bar()
 plotter.background_color = 'black'
 plotter.view_isometric()
@@ -187,7 +185,6 @@ with col2:
 st.subheader('Calculation Summary',divider='grey')
 st.write('Overturning Utilisation = ' + str(math.floor(Overturning_FOS*100)) + "% (Unfactored)")
 st.write('Sliding Utilisation = ' + str(math.floor(Sliding_FOS*100)) + "% (Unfactored)")
-
 
 points = [
     [0.0, 0.0, 0.0],  # 0
