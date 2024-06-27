@@ -7,13 +7,13 @@ from gekko import GEKKO
 import math
 import pandas as pd
 
-from stpyvista.utils import start_xvfb
+#from stpyvista.utils import start_xvfb
 
 #The Community Cloud is a headless machine and Pyvista requires a virtual framebuffer to work. stpyvista.utils.start_xvfb checks if Xvfb is running and starts it if it was not.
 
-if "IS_XVFB_RUNNING" not in st.session_state:
-  start_xvfb()
-  st.session_state.IS_XVFB_RUNNING = True 
+#if "IS_XVFB_RUNNING" not in st.session_state:
+#  start_xvfb()
+#  st.session_state.IS_XVFB_RUNNING = True 
 
 #Set up sidebar and parameters t
 st.set_page_config(page_title="L-Unit Optimisation Calculator",page_icon=":computer",layout="wide")
@@ -140,26 +140,26 @@ plotter = pv.Plotter(window_size=[800,400])
 mesh=pv.read('mesh_v1.stl')
 
 ## Add mesh to the plotter
-plotter.add_mesh(mesh, 
+plotter.add_mesh(mesh) 
                     #scalars='my_scalar', cmap='bwr'
-                )
+                
 
-## Final touches
-plotter.view_isometric()
+
 #plotter.add_scalar_bar()
 plotter.background_color = 'black'
+plotter.view_isometric()
 
 ## Plot Mesh
 col1, col2 = st.columns([3,1])
 
 with col1:
-    stpyvista(plotter
+    stpyvista(plotter)
               #panel_kwargs=dict(
                   #orientation_widget=True,
                   #interactive_orientation_widget=True
                   #)
               #key="pv_cube" #Pass a key to avoid re-rendering at each page change
-    )
+    #)
  
 with open("L-unit.dxf", "rb") as file:
     dxf_bytes = file.read()
@@ -187,3 +187,93 @@ with col2:
 st.subheader('Calculation Summary',divider='grey')
 st.write('Overturning Utilisation = ' + str(math.floor(Overturning_FOS*100)) + "% (Unfactored)")
 st.write('Sliding Utilisation = ' + str(math.floor(Sliding_FOS*100)) + "% (Unfactored)")
+
+
+points = [
+    [0.0, 0.0, 0.0],  # 0
+    [0.0, 3.0, 0.0],  # 1
+    [0.3, 3.0, 0.0],  # 2
+    [0.3, 0.5, 0.0],  # 3
+    [0.5, 0.3, 0.0],  # 4
+    [2.0, 0.3, 0.0],  # 5
+    [2.0, 0.0, 0.0],  # 6
+    [0.0, 0.0, 2.0],  # 7
+    [0.0, 3.0, 2.0],  # 8
+    [0.3, 3.0, 2.0],  # 9
+    [0.3, 0.5, 2.0],  # 10
+    [0.5, 0.3, 2.0],  # 11
+    [2.0, 0.3, 2.0],  # 12
+    [2.0, 0.0, 2.0],  # 13
+]
+
+polyhedron_connectivity = [
+    # NItems will go here
+    9,  # number of faces
+    7,  # number of points in face0
+    0,  # point index 0
+    1,  # point index 1
+    2,  # point index 2
+    3,  # point index 3
+    4,  # point index 4
+    5,
+    6,
+    7,  # number of points in face1
+    7,  # point index ...
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    4,  # number of points in face2
+    0,
+    6,
+    13,
+    7,
+    4,  # number of points in face3
+    5,
+    6,
+    13,
+    12,
+    4,  # number of points in face4
+    4,
+    5,
+    12,
+    11,
+    4, # number of points in face5
+    3,
+    4,
+    11,
+    10,
+    4,  #number of points in face6
+    2,
+    3,
+    10,
+    9,
+    4, # face 7
+    1,
+    2,
+    9,
+    8,
+    4, #face 8
+    0,
+    1,
+    8,
+    7,
+      
+]
+
+# note how we retroactively add NItems
+polyhedron = [len(polyhedron_connectivity)] + polyhedron_connectivity
+
+cells=polyhedron
+celltypes = [pv.CellType.POLYHEDRON]
+grid = pv.UnstructuredGrid(cells, celltypes, points)
+plotter_test = pv.Plotter(window_size=[800,400])
+
+plotter_test.add_mesh(grid) 
+#plotter.add_scalar_bar()
+plotter_test.background_color = 'black'
+plotter_test.view_isometric()
+stpyvista(plotter_test)
+
