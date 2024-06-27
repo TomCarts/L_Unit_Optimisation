@@ -1,6 +1,6 @@
 pip
 streamlit>=1.33.0
-numpy
+numpy>=1.20.0
 matplotlib
 panel>=1.4.1
 bokeh
