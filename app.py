@@ -74,12 +74,12 @@ m.options.SOLVER = 3
 # Change to parallel linear solver
 m.solver_options = ['linear_solver ma97']
 # Initialize variables
-Bw = m.Var(value=1,lb=1,ub=5) #Base width limits
+Bw = m.Var(value=1,lb=1,ub=10) #Base width limits
 Bt = m.Var(value=0.3,lb=0.3,ub=0.75) #Base thickness limits
 Uh = m.Var(value=0.5,lb=0.5,ub=5) #Upstand height limits
 Ut = m.Var(value=0.3,lb=0.3,ub=0.5) #Upstand thickness limits
 dc = m.Var(value=0.1,lb=0.05,ub=0.2) #Chamfer diameter limits
-L= m.Var(value=2,lb=0.5,ub=5) #Unit Length limits
+L= m.Var(value=2,lb=0.5,ub=10) #Unit Length limits
 
 # Equations
 m.Equation(Bt+Uh==h) #L-Unit height
