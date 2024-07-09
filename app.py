@@ -6,6 +6,7 @@ from cadquery import exporters
 from gekko import GEKKO
 import math
 import pandas as pd
+import numpy as np
 
 from stpyvista.utils import start_xvfb
 
@@ -33,7 +34,8 @@ with st.sidebar:
     df=st.data_editor(df)
     st.subheader('Planned Development')
     st.write('''
-    - Add Generative AI Input
+    - Add controls and summary of optimisation parameters
+    - Add Latex Calculation output
     ''')
 
     st.subheader('Author')
@@ -83,8 +85,8 @@ L= m.Var(value=2,lb=0.5,ub=5) #Unit Length limits
 m.Equation(Bt+Uh==h) #L-Unit height
 m.Equation((Bt+Uh)/Bw<=1.0) #L-Unit Height / Width Ratio
 m.Equation((Bt+Uh)/L<=1.0) #L-unit Height / Length Ratio
-m.Equation(((P_a*(Uh+Bt)+(0.5*(Bt+Uh)**2*p_s*L*(k_s)*((Bt+Uh)/3))+0.5*L*(Bt+Uh)**2*q*k_s)/((Bw*Bt*Bw/2+Uh*Ut*Ut/2)*p_c*L+(Uh*(Bw-Ut))*L*p_s*(Ut+(0.5*Uh*(Bw-Ut)))))<=0.95) #Overturning FOS - Stabilsing forces
-m.Equation(((P_a+(0.5*(Bt+Uh)**2*p_s*L*k_s)+L*(Bt+Uh)*q*k_s)/(((Bw*Bt+Uh*Ut)*p_c*L+(Uh*(Bw-Ut))*L*p_c)*Fr))<=0.95)                           #Sliding FOS - Stabilising Forces
+m.Equation(((P_a*(Uh+Bt)+(0.5*(Bt+Uh)**2*p_s*L*(k_s)*((Bt+Uh)/3))+0.5*L*(Bt+Uh)**2*q*k_s)/((Bw*Bt*Bw/2+Uh*Ut*Ut/2)*p_c*L+(Uh*(Bw-Ut))*L*p_s*(Ut+(0.5*(Bw-Ut)))))<=0.95) #Overturning FOS - Stabilsing forces
+m.Equation(((P_a+(0.5*(Bt+Uh)**2*p_s*L*k_s)+L*(Bt+Uh)*q*k_s)/(((Bw*Bt+Uh*Ut)*p_c*L+(Uh*(Bw-Ut))*L*p_s)*Fr))<=0.95)                           #Sliding FOS - Stabilising Forces
 #m.Equation((Bw*Bt+Uh*Ut+dc**2/2)*25*L<=50)   #Weight Limits
 m.Minimize((Bw*Bt+Uh*Ut+dc**2/2)*25*L) # Equation to minimise - L-unit Weight
 m.options.IMODE = 3 # Steady state optimization
@@ -110,9 +112,35 @@ Ut = Ut.value[0]
 dc = dc.value[0]
 L= L.value[0]
 
-Overturning_FOS = (((P_a*(Uh+Bt)+(0.5*(Bt+Uh)**2*p_s*L*(k_s)*((Bt+Uh)/3))+0.5*L*(Bt+Uh)**2*q*k_s)/((Bw*Bt*Bw/2+Uh*Ut*Ut/2)*p_c*L+(Uh*(Bw-Ut))*L*p_s*(Ut+(0.5*Uh*(Bw-Ut)))))) #Overturning FOS - Stabilsing forces
+Overturning_FOS = (((P_a*(Uh+Bt)+ #impact load
+                     (0.5*(Bt+Uh)**2*p_s*L*(k_s)*((Bt+Uh)/3))+ #soil ko
+                     0.5*L*(Bt+Uh)**2*q*k_s)/ #surcharge ko
+                    
+                    ((Bw*Bt*Bw/2+Uh*Ut*Ut/2)*p_c*L+ #unit selfweight
+                     (Uh*(Bw-Ut))*L*p_s*(Ut+(0.5*(Bw-Ut)))))) #soil selfweight
 
-Sliding_FOS = (((P_a+(0.5*(Bt+Uh)**2*p_s*L*k_s)+L*(Bt+Uh)*q*k_s)/(((Bw*Bt+Uh*Ut)*p_c*L+(Uh*(Bw-Ut))*L*p_c)*Fr)))                           #Sliding FOS - Stabilising Forces
+Sliding_FOS = (((P_a+ #Point load
+                 (0.5*(Bt+Uh)**2*p_s*L*k_s)+ #soil sw
+                 L*(Bt+Uh)*q*k_s)/ #surcharge
+                (((Bw*Bt+Uh*Ut)*p_c*L+ #unit selfweight
+                  (Uh*(Bw-Ut))*L*p_s)*Fr)))       #unit soil weight                    #Sliding FOS - Stabilising Forces
+
+Unit_weight= (Bw*Bt+Uh*Ut)*p_c*L
+Unit_lever = ((Bw*Bt*Bw/2+Uh*Ut*Ut/2)*p_c*L)/Unit_weight
+
+Soil_heel_sw=(Uh*(Bw-Ut))*L*p_s
+Soil_heel_lever=(Ut+(0.5*(Bw-Ut)))
+
+Accidental_Impact_Load=P_a
+Accidental_Lever=(Uh+Bt)
+
+Retained_soil_sw=(0.5*(Bt+Uh)**2*p_s*L*(k_s))
+Retained_soil_lever= (Bt+Uh)/3
+
+Surcharge_sw =L*(Bt+Uh)*q*k_s
+Surcharge_sw_lever=(Bt+Uh)/2
+
+
 
 # Define CAD Query Geometry f
 pts = [
@@ -185,5 +213,41 @@ with col2:
     st.dataframe(l_df)
     
 st.subheader('Calculation Summary',divider='grey')
-st.write('Overturning Utilisation = ' + str(math.floor(Overturning_FOS*100)) + "% (Unfactored)")
+
+stb_results_df=pd.DataFrame({'Load (kN)':[Soil_heel_sw,Unit_weight],
+                         'Lever (m)':[Soil_heel_lever,Unit_lever],
+                         'Friction':[Fr,Fr]},
+               index=['Soil Selfweight on Heel',
+                      'Concrete Unit Selfweight'])
+
+destb_results_df=pd.DataFrame({'Load (kN)':[Retained_soil_sw,Surcharge_sw,Accidental_Impact_Load],
+                         'Lever (m)':[Retained_soil_lever,Surcharge_sw_lever,Accidental_Lever],
+                         'Friction':[1,1,1]},
+               index=['Retained soil selfweight',
+                      'Retained soil surcharge',
+                      'Accidental Impact Loads'])
+
+stb_results_df['Sliding_Force (kN)']=stb_results_df['Load (kN)']*stb_results_df['Friction']
+stb_results_df['Moment (kNm)']=stb_results_df['Load (kN)']*stb_results_df['Lever (m)']
+stb_results_df.loc['Total']= stb_results_df.sum()
+
+destb_results_df['Sliding_Force (kN)']=destb_results_df['Load (kN)']*destb_results_df['Friction']
+destb_results_df['Moment (kNm)']=destb_results_df['Load (kN)']*destb_results_df['Lever (m)']
+destb_results_df.loc['Total']= destb_results_df.sum()
+
+st.write('Summary of Loads')
+st.divider()
+
+st.write('Restoring Forces')
+st.dataframe(stb_results_df.style.format({"Load (kN)": "{:.2f}","Lever (m)": "{:.2f}","Friction": "{:.2f}","Sliding_Force (kN)": "{:.2f}","Moment (kNm)": "{:.2f}",}))
+st.write('Destabilising Forces')
+st.dataframe(destb_results_df.style.format({"Load (kN)": "{:.2f}","Lever (m)": "{:.2f}","Friction": "{:.2f}","Sliding_Force (kN)": "{:.2f}","Moment (kNm)": "{:.2f}",}))
+
+st.write('Stability Calculation')
+st.divider()
+
+st.write('Sliding Factor of Safety = ' + str(np.round(stb_results_df.iloc[2,3],decimals=2)) + '/' + str(np.round(destb_results_df.iloc[3,3],decimals=2)) + ' = ' + str(np.round((stb_results_df.iloc[2,3])/(destb_results_df.iloc[3,3]),decimals=2)))
 st.write('Sliding Utilisation = ' + str(math.floor(Sliding_FOS*100)) + "% (Unfactored)")
+
+st.write('Overturning Factor of Safety = '+ str(np.round(stb_results_df.iloc[2,4],decimals=2)) + '/' + str(np.round(destb_results_df.iloc[3,4],decimals=2)) + ' = ' + str(np.round((stb_results_df.iloc[2,4])/(destb_results_df.iloc[3,4]),decimals=2)))
+st.write('Overturning Utilisation = ' + str(math.floor(Overturning_FOS*100)) + "% (Unfactored)")
